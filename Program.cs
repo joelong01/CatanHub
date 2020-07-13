@@ -23,5 +23,22 @@ namespace CatanHub
                 {
                     webBuilder.UseStartup<Startup>();
                 });
+
+        /* return Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.ConfigureKestrel(serverOptions =>
+                    {
+                        var addr = Dns.GetHostName();
+                        var he = Dns.GetHostEntry(addr);
+                        foreach (var address in he.AddressList)
+                        {
+                            serverOptions.Listen(address, 5000);
+                        }
+                    }).UseStartup<Startup>();
+                });
+         
+         
+         */
     }
 }

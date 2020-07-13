@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using Catan.Proxy;
 
+using CatanHub.State;
 
 using Microsoft.AspNetCore.SignalR;
 
@@ -20,6 +21,7 @@ namespace CatanHub
         Task OnAck(string fromPlayer, Guid messageId);
         Task AllGames(List<GameInfo> games);
         Task AllPlayers(ICollection<string> players);
+        Task AllMessagages(List<CatanMessage> messages);
 
         Task CreateGame(GameInfo gameInfo, string by);
 
@@ -148,6 +150,17 @@ namespace CatanHub
             await Clients.Caller.AllGames(games);
         }
 
+        public async Task GetAllMessage(GameInfo gameInfo)
+        {
+            Game game = Games.GetGame(gameInfo.Id);
+            if (game != null)
+            {
+                List<CatanMessage> messages = new List<CatanMessage>();
+                messages.AddRange(game.GameLog.ToArray());
+                await Clients.Caller.AllMessagages(messages);
+            }
+        }
+
         public async Task GetPlayersInGame(Guid gameId)
         {
             Game game = Games.GetGame(gameId);
@@ -270,8 +283,8 @@ namespace CatanHub
             var toId = PlayerToConnectionDictionary[toName];
             // Console.WriteLine($"[ToId: {toId}] for [toName={toName}]");
             //return Clients.User(toId).ToOneClient(message);
-             return Clients.All.ToOneClient(message);
-            
+            return Clients.All.ToOneClient(message);
+
         }
 
         #endregion Methods
