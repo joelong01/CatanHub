@@ -18,7 +18,6 @@
     },
     "CatanHub": {
       "commandName": "Project",
-      "commandLineArgs": "--urls=http://192.168.1.128:5000/",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.Azure.SignalR"

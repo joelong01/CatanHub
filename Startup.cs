@@ -53,7 +53,7 @@ namespace CatanHub
             {
                 endpoints.MapGet("/", async context =>
                 {
-                    await context.Response.WriteAsync("CatanHub version 1.1");
+                    await context.Response.WriteAsync("CatanHub version 1.2");
                 });
                 endpoints.MapHub<CatanHub>("/CatanHub");
             });
