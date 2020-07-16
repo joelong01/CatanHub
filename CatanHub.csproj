@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CatanProxy" Version="2020.6.28.192735" />
+    <PackageReference Include="CatanProxy" Version="2020.7.15.175737" />
     <PackageReference Include="Microsoft.Azure.SignalR" Version="1.4.0" />
   </ItemGroup>
 
