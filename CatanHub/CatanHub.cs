@@ -23,18 +23,21 @@ namespace CatanHub
         Task AllPlayers (ICollection<string> players);
         Task AllMessages (List<CatanMessage> messages);
 
-        Task CreateGame (GameInfo gameInfo, string by);
+        Task CreateGame (CatanMessage message);
 
-        Task DeleteGame (GameInfo gameInfo, string by);
+        Task DeleteGame (CatanMessage message);
 
-        Task JoinGame (GameInfo gameInfo, string playerName);
+        Task JoinGame (CatanMessage message);
+        Task RejoinGame (CatanMessage message);
 
-        Task LeaveGame (GameInfo gameInfo, string playerName);
+        Task LeaveGame (CatanMessage message);
 
         Task ToAllClients (CatanMessage message);
 
         Task ToOneClient (CatanMessage message);
         Task ServiceError (CatanMessage message, string error);
+
+        Task Pong ();
 
         #endregion Methods
     }
@@ -54,6 +57,11 @@ namespace CatanHub
 
         #region Methods
 
+        public async Task Ping()
+        {
+            await Clients.Caller.Pong();
+        }
+
         public async Task PostMessage (CatanMessage message)
         {
             if (message == null) return;
@@ -67,6 +75,7 @@ namespace CatanHub
             }
 
             string gameId = message.GameInfo.Id.ToString();
+            message.MessageDirection = MessageDirection.ServerToClient;
 
             switch (message.MessageType)
             {
@@ -78,43 +87,62 @@ namespace CatanHub
                     await Clients.Group(gameId).ToAllClients(message);  // no private message for now
                     break;
                 case MessageType.CreateGame:
-                    
+
                     //
                     //  do nothing if game is already created
                     if (game == default)
                     {
-                        game = new Game() { GameInfo = message.GameInfo};
+                        game = new Game() { GameInfo = message.GameInfo };
                         Games.AddGame(message.GameInfo.Id, game);
                         await Groups.AddToGroupAsync(Context.ConnectionId, gameId);
                         game.PostLog(message);
-                        //
-                        //  tell *all* the clients that a game was created
-                        await Clients.All.CreateGame(message.GameInfo, message.GameInfo.Creator);
-
                     }
-                                        
+                    else
+                    {
+                        //
+                        //  this will set the creator correctly
+                        message.GameInfo = game.GameInfo;
+                    }
+
+                    //
+                    //  tell *all* the clients that a game was created
+                    await Clients.All.CreateGame(message);
+
                     break;
                 case MessageType.DeleteGame:
-                    Games.DeleteGame(message.GameInfo.Id, out Game _);                    
+                    Games.DeleteGame(message.GameInfo.Id, out Game _);
                     //
                     //  tell *all* the clients that a game was deleted
-                    await Clients.All.DeleteGame(message.GameInfo, message.From);
+                    await Clients.All.DeleteGame(message);
+                    break;
+                case MessageType.RejoinGame:
+                    //
+                    //  this will only fail if the player is already there, but we don't care about that
+                    game.NameToPlayerDictionary.TryAdd(message.From, new Player(game.GameLog));
+
+                    await Groups.AddToGroupAsync(Context.ConnectionId, gameId);
+                    
+                    //
+                    //  the difference between Join and Rejoin is that on Rejoin only the caller is told
+                    //  the client will (presumably) make the rejoin seamless to the user
+                    await Clients.Caller.RejoinGame(message);
+
                     break;
                 case MessageType.JoinGame:
 
                     //
                     //  this will only fail if the player is already there, but we don't care about that
                     game.NameToPlayerDictionary.TryAdd(message.From, new Player(game.GameLog));
-                    
-                    await Groups.AddToGroupAsync(Context.ConnectionId, gameId );
+
+                    await Groups.AddToGroupAsync(Context.ConnectionId, gameId);
                     //
                     //  notify everybody else in the group that somebody has joined the game
-                    await Clients.Group(gameId).JoinGame(message.GameInfo, message.From);                    
+                    await Clients.Group(gameId).JoinGame(message);
                     break;
                 case MessageType.LeaveGame:
                     game.NameToPlayerDictionary.TryRemove(message.From, out Player _);
                     _ = Groups.RemoveFromGroupAsync(Context.ConnectionId, gameId);
-                    await Clients.Group(gameId).LeaveGame(message.GameInfo, message.From);
+                    await Clients.Group(gameId).LeaveGame(message);
                     break;
                 case MessageType.Ack:
                     await Clients.Group(gameId).OnAck(message);
@@ -135,13 +163,13 @@ namespace CatanHub
                 GameInfo = message.GameInfo,
                 ActionType = ActionType.Normal,
                 MessageId = message.MessageId
-                
+
 
             };
             await Clients.Group(message.GameInfo.Id.ToString()).ToAllClients(errorMessage);
         }
 
-      
+
 
 
         public Task Reset ()
@@ -177,7 +205,7 @@ namespace CatanHub
 
         public async Task GetPlayersInGame (Guid gameId)
         {
-            Game game = Games.GetGame(gameId); 
+            Game game = Games.GetGame(gameId);
             if (game != null)
             {
                 await Clients.Caller.AllPlayers(game.NameToPlayerDictionary.Keys);
@@ -188,7 +216,7 @@ namespace CatanHub
             }
         }
 
-              
+
 
         public override async Task OnConnectedAsync ()
         {
@@ -217,5 +245,13 @@ namespace CatanHub
         }
 
         #endregion Methods
+    }
+
+    public class NameUserIdProvider : IUserIdProvider
+    {
+        public string GetUserId(HubConnectionContext connection)
+        {
+            return connection.User?.Identity?.Name;
+        }
     }
 }
